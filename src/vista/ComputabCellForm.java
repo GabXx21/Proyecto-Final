@@ -4,6 +4,12 @@ import controlador.InventarioController;
 import controlador.ReparacionController;
 import modelo.Producto;
 import modelo.Reparacion;
+import controlador.UsuarioController;
+import modelo.Usuario;
+import modelo.Rol;
+
+import modelo.Rol;
+import util.Sesion;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -40,7 +46,23 @@ public class ComputabCellForm extends JFrame {
     private JButton btnActualizarReparacion;
     private JButton btnEliminarReparacion;
     private JButton btnLimpiarReparacion;
+    private JTabbedPane tabbedPane2;
+    private JTextField txtUsuario;
+    private JPasswordField txtPasswordUsuario;
+    private JTextField txtNombreUsuario;
+    private JComboBox cbRol;
+    private JCheckBox chkActivo;
+    private JButton btnNuevoUsuario;
+    private JButton btnAgregarUsuario;
+    private JButton btnBuscarUsuario;
+    private JButton btnActualizarUsuario;
+    private JButton btnEliminarUsuario;
+    private JButton btnLimpiarUsuario;
+    private JTable tblUsuarios;
     private int contadorOrden = 1;
+
+    private final UsuarioController usuarioController =
+            new UsuarioController();
 
     private final InventarioController inventarioController =
             new InventarioController();
@@ -48,7 +70,21 @@ public class ComputabCellForm extends JFrame {
     private final ReparacionController reparacionController =
             new ReparacionController();
 
+
+
     public ComputabCellForm() {
+
+        setTitle("ComputabCell");
+
+        setContentPane(panelPrincipal);
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        pack();
+
+        setLocationRelativeTo(null);
+
+        setResizable(false);
 
         setTitle("ComputabCell");
         setContentPane(panelPrincipal);
@@ -69,6 +105,29 @@ public class ComputabCellForm extends JFrame {
 
         actualizarTablaProductos();
         actualizarTablaReparaciones();
+
+        aplicarPermisos();
+
+
+        btnNuevoUsuario.addActionListener(e -> limpiarUsuario());
+
+        btnAgregarUsuario.addActionListener(e -> agregarUsuario());
+
+        btnBuscarUsuario.addActionListener(e -> buscarUsuario());
+
+        btnActualizarUsuario.addActionListener(e -> actualizarUsuario());
+
+        btnEliminarUsuario.addActionListener(e -> eliminarUsuario());
+
+        btnLimpiarUsuario.addActionListener(e -> limpiarUsuario());
+
+        cbRol.removeAllItems();
+
+        cbRol.addItem("ADMIN");
+
+        cbRol.addItem("TECNICO");
+
+        actualizarTablaUsuarios();
     }
 
     private void inicializarEventos() {
@@ -399,15 +458,8 @@ public class ComputabCellForm extends JFrame {
         cbCategoria.setSelectedIndex(0);
     }
 
-    public static void main(String[] args) {
-
-        SwingUtilities.invokeLater(() -> {
-
-            ComputabCellForm ventana =
-                    new ComputabCellForm();
-
-            ventana.setVisible(true);
-        });
+    public JPanel getPanelPrincipal() {
+        return panelPrincipal;
     }
 
     // Reparaciones
@@ -646,6 +698,68 @@ public class ComputabCellForm extends JFrame {
         tblReparaciones.setModel(modelo);
     }
 
+    private void eliminarUsuario() {
+
+        String usuario = txtUsuario.getText().trim();
+
+        if (usuario.isEmpty()) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Seleccione un usuario.",
+                    "Advertencia",
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            return;
+        }
+
+        // El administrador principal no puede eliminarse
+        if (usuario.equalsIgnoreCase("admin")) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "El usuario ADMIN no puede eliminarse.",
+                    "Acción no permitida",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            return;
+        }
+
+        int opcion = JOptionPane.showConfirmDialog(
+                this,
+                "¿Está seguro de eliminar este usuario?",
+                "Confirmar",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (opcion != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        if (usuarioController.eliminarUsuario(usuario)) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Usuario eliminado correctamente."
+            );
+
+            actualizarTablaUsuarios();
+
+            limpiarUsuario();
+
+        } else {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "No se encontró el usuario."
+            );
+
+        }
+
+    }
+
     private void configurarSeleccionReparaciones() {
 
         tblReparaciones.getSelectionModel()
@@ -700,6 +814,344 @@ public class ComputabCellForm extends JFrame {
         );
     }
 
+    private boolean validarUsuario(){
+
+        if(txtUsuario.getText().trim().isEmpty()){
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ingrese el usuario."
+            );
+
+            txtUsuario.requestFocus();
+
+            return false;
+        }
+
+        if(txtPasswordUsuario.getPassword().length == 0){
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ingrese la contraseña."
+            );
+
+            txtPasswordUsuario.requestFocus();
+
+            return false;
+        }
+
+        if(txtNombreUsuario.getText().trim().isEmpty()){
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ingrese el nombre."
+            );
+
+            txtNombreUsuario.requestFocus();
+
+            return false;
+        }
+
+        return true;
+
+    }
+
+    private void limpiarUsuario() {
+
+        txtUsuario.setText("");
+
+        txtPasswordUsuario.setText("");
+
+        txtNombreUsuario.setText("");
+
+        cbRol.setSelectedIndex(0);
+
+        chkActivo.setSelected(true);
+
+        txtUsuario.setEnabled(true);
+
+        tblUsuarios.clearSelection();
+
+        txtUsuario.requestFocus();
+
+    }
+
+    private void agregarUsuario() {
+
+        // Validar campos
+        if (!validarUsuario()) {
+            return;
+        }
+
+        // Verificar si el usuario ya existe
+        if (usuarioController.buscarUsuario(txtUsuario.getText().trim()) != null) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "El usuario ya existe.",
+                    "Advertencia",
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            txtUsuario.requestFocus();
+            return;
+        }
+
+        // Crear objeto Usuario
+        Usuario usuario = new Usuario(
+                txtUsuario.getText().trim(),
+                String.valueOf(txtPasswordUsuario.getPassword()),
+                txtNombreUsuario.getText().trim(),
+                Rol.valueOf(cbRol.getSelectedItem().toString()),
+                chkActivo.isSelected()
+        );
+
+        // Agregar al controlador
+        boolean agregado = usuarioController.agregarUsuario(usuario);
+
+        if (agregado) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Usuario registrado correctamente.",
+                    "Información",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            actualizarTablaUsuarios();
+            limpiarUsuario();
+
+        } else {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "No fue posible registrar el usuario.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+        }
+    }
+
+    private void buscarUsuario(){
+
+        Usuario usuario =
+                usuarioController.buscarUsuario(
+                        txtUsuario.getText()
+                );
+
+        if(usuario == null){
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Usuario no encontrado."
+            );
+
+            return;
+
+        }
+
+        txtPasswordUsuario.setText(
+                usuario.getPassword()
+        );
+
+        txtNombreUsuario.setText(
+                usuario.getNombre()
+        );
+
+        cbRol.setSelectedItem(
+                usuario.getRol().name()
+        );
+
+        chkActivo.setSelected(
+                usuario.isActivo()
+        );
+
+    }
+
+    private void actualizarUsuario() {
+
+        if (!validarUsuario()) {
+            return;
+        }
+
+        String usuario = txtUsuario.getText().trim();
+
+        // El administrador siempre debe estar activo
+        if (usuario.equalsIgnoreCase("admin") &&
+                !chkActivo.isSelected()) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "El administrador principal no puede desactivarse.",
+                    "Acción no permitida",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            chkActivo.setSelected(true);
+
+            return;
+        }
+
+        boolean actualizado =
+                usuarioController.actualizarUsuario(
+
+                        usuario,
+
+                        String.valueOf(
+                                txtPasswordUsuario.getPassword()
+                        ),
+
+                        txtNombreUsuario.getText().trim(),
+
+                        Rol.valueOf(
+                                cbRol.getSelectedItem().toString()
+                        ),
+
+                        chkActivo.isSelected()
+
+                );
+
+        if (actualizado) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Usuario actualizado correctamente."
+            );
+
+            actualizarTablaUsuarios();
+
+        } else {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Usuario no encontrado."
+            );
+
+        }
+
+    }
+
+    private void actualizarTablaUsuarios(){
+
+        DefaultTableModel modelo =
+                new DefaultTableModel(
+                        null,
+                        new String[]{
+                                "Usuario",
+                                "Nombre",
+                                "Rol",
+                                "Activo"
+                        }
+                ){
+
+                    @Override
+                    public boolean isCellEditable(int row,
+                                                  int column){
+
+                        return false;
+
+                    }
+
+                };
+
+        for(Usuario usuario :
+                usuarioController.listarUsuarios()){
+
+            modelo.addRow(new Object[]{
+
+                    usuario.getUsuario(),
+
+                    usuario.getNombre(),
+
+                    usuario.getRol(),
+
+                    usuario.isActivo()
+
+            });
+
+        }
+
+        tblUsuarios.setModel(modelo);
+
+        tblUsuarios.getSelectionModel().addListSelectionListener(e -> {
+
+            if(!e.getValueIsAdjusting()){
+
+                seleccionarUsuario();
+
+            }
+
+        });
+
+    }
+
+    private void seleccionarUsuario() {
+
+        int fila = tblUsuarios.getSelectedRow();
+
+        if (fila == -1) {
+
+            return;
+
+        }
+
+        String usuarioSeleccionado =
+                tblUsuarios.getValueAt(fila, 0).toString();
+
+        Usuario usuario =
+                usuarioController.buscarUsuario(
+                        usuarioSeleccionado
+                );
+
+        if (usuario == null) {
+
+            return;
+
+        }
+
+        txtUsuario.setText(usuario.getUsuario());
+
+        txtPasswordUsuario.setText(usuario.getPassword());
+
+        txtNombreUsuario.setText(usuario.getNombre());
+
+        cbRol.setSelectedItem(
+                usuario.getRol().name()
+        );
+
+        chkActivo.setSelected(
+                usuario.isActivo()
+        );
+
+        txtUsuario.setEnabled(false);
+
+    }
 
 
+    private void aplicarPermisos() {
+
+        if (Sesion.getUsuarioActual() == null) {
+            return;
+        }
+
+        Rol rol = Sesion.getUsuarioActual().getRol();
+
+        if (rol == Rol.ADMIN) {
+
+            // El administrador tiene acceso a todo
+            return;
+        }
+
+        if (rol == Rol.TECNICO) {
+
+            // Ocultar Inventario
+            tabbedPane1.remove(0);
+
+            // Después de eliminar Inventario, Usuarios pasa al índice 1
+            tabbedPane1.remove(1);
+
+        }
+
+    }
 }
